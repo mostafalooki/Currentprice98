@@ -1,73 +1,69 @@
 import requests
-from bs4 import BeautifulSoup
-from telegram import Bot
 import time
-import schedule
 import os
+from dotenv import load_dotenv
 
-TELEGRAM_BOT_TOKEN = os.getenv("BOT_TOKEN")
-TELEGRAM_CHANNEL_ID = '@Currentprice98'
+load_dotenv()
 
-bot = Bot(token=TELEGRAM_BOT_TOKEN)
+BOT_TOKEN = os.environ.get("BOT_TOKEN")
+CHAT_ID = "@Currentprice98"  # آیدی کانالت با @ شروع میشه
 
-def get_nobitex_price(symbol):
+def get_nobitex_prices():
+    url = "https://api.nobitex.ir/market/stats"
+    response = requests.post(url, data={"srcCurrency": "usdt", "dstCurrency": "rls"})
+    data = response.json()
+    tether_price = int(float(data['stats']['usdt-rls']['latest']))
+
+    btc = requests.post(url, data={"srcCurrency": "btc", "dstCurrency": "rls"})
+    btc_price = int(float(btc.json()['stats']['btc-rls']['latest']))
+
+    eth = requests.post(url, data={"srcCurrency": "eth", "dstCurrency": "rls"})
+    eth_price = int(float(eth.json()['stats']['eth-rls']['latest']))
+
+    return tether_price, btc_price, eth_price
+
+def get_abshode_price():
     try:
-        url = f"https://api.nobitex.ir/market/stats?symbol={symbol}-irt"
-        res = requests.get(url)
-        data = res.json()
-        return int(float(data['stats'][f'{symbol}-irt']['latest']))
+        response = requests.get("https://api.tala.in/api/v1/live")
+        data = response.json()
+        abshode_price = int(data['data']['geram18']['price'])  # گرم 18 عیار
+        return abshode_price
     except:
-        return None
+        return "نامشخص"
 
-def get_talain_gold():
+def get_ons_price():
     try:
-        res = requests.get("https://talain.ir")
-        soup = BeautifulSoup(res.text, 'html.parser')
-        tag = soup.find('div', string="قیمت گرم ۱۸ عیار").find_next('div')
-        price_text = tag.text.strip().replace(',', '')
-        return int(price_text)
+        response = requests.get("https://api.coingecko.com/api/v3/simple/price?ids=tether-gold&vs_currencies=usd")
+        ons = float(response.json()['tether-gold']['usd'])
+        return ons
     except:
-        return None
+        return "نامشخص"
 
-def get_ounce_price():
-    try:
-        res = requests.get("https://api.metals.live/v1/spot")
-        data = res.json()
-        for item in data:
-            if 'gold' in item:
-                return float(item['gold'])
-    except:
-        return None
+def send_message(text):
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    data = {"chat_id": CHAT_ID, "text": text}
+    requests.post(url, data=data)
 
-def send_to_telegram(message):
-    bot.send_message(chat_id=TELEGRAM_CHANNEL_ID, text=message)
+def main():
+    while True:
+        try:
+            tether_price, btc_price, eth_price = get_nobitex_prices()
+            abshode_price = get_abshode_price()
+            ons_price = get_ons_price()
 
-def job():
-    usdt = get_nobitex_price('usdt')
-    btc = get_nobitex_price('btc')
-    eth = get_nobitex_price('eth')
-    gold_18 = get_talain_gold()
-    ounce = get_ounce_price()
+            msg = f"""📊 قیمت لحظه‌ای:
+💵 تتر: {tether_price:,} تومان
+₿ بیت‌کوین: {btc_price:,} تومان
+Ξ اتریوم: {eth_price:,} تومان
+🪙 آب‌شده ۱۸ عیار: {abshode_price:,} تومان
+🏅 انس جهانی طلا: {ons_price} دلار
+"""
 
-    msg = "📊 قیمت لحظه‌ای:"
-    
-    if usdt: msg += f"💵 تتر (نوبیتکس): {usdt:,} تومان
-"
-    if btc: msg += f"₿ بیت‌کوین: {btc:,} تومان
-"
-    if eth: msg += f"Ξ اتریوم: {eth:,} تومان
-"
-    if gold_18: msg += f"🏅 طلا ۱۸ عیار: {gold_18:,} تومان
-"
-    if ounce: msg += f"🌍 انس جهانی: {ounce} دلار
-"
-    msg += "\n#بروزرسانی_خودکار"
+            send_message(msg)
+        except Exception as e:
+            send_message(f"⚠️ خطا در دریافت قیمت: {e}")
 
-    send_to_telegram(msg)
+        time.sleep(60)
 
-schedule.every(1).minutes.do(job)
-print("✅ ربات فعال شد...")
-
-while True:
-    schedule.run_pending()
-    time.sleep(1)
+if __name__ == "__main__":
+    main()
