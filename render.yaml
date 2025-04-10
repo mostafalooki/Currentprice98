@@ -1,9 +1,0 @@
-services:
-  - type: worker
-    name: telegram-price-bot
-    runtime: python
-    repo: https://github.com/mostafalooki/Currentprice98
-    branch: main
-    plan: free
-    buildCommand: pip install -r requirements.txt
-    startCommand: python main.py
