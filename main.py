@@ -12,13 +12,13 @@ def get_nobitex_prices():
     url = "https://api.nobitex.ir/market/stats"
     response = requests.post(url, data={"srcCurrency": "usdt", "dstCurrency": "rls"})
     data = response.json()
-    tether_price = int(float(data['stats']['usdt-rls']['latest'])) if isinstance(data['stats']['usdt-rls']['latest'], (int, float)) else 0
+    tether_price = int(float(data['stats']['usdt-rls']['latest'])) if isinstance(data['stats']['usdt-rls']['latest'], (int, float)) else None
 
     btc = requests.post(url, data={"srcCurrency": "btc", "dstCurrency": "rls"})
-    btc_price = int(float(btc.json()['stats']['btc-rls']['latest'])) if isinstance(btc.json()['stats']['btc-rls']['latest'], (int, float)) else 0
+    btc_price = int(float(btc.json()['stats']['btc-rls']['latest'])) if isinstance(btc.json()['stats']['btc-rls']['latest'], (int, float)) else None
 
     eth = requests.post(url, data={"srcCurrency": "eth", "dstCurrency": "rls"})
-    eth_price = int(float(eth.json()['stats']['eth-rls']['latest'])) if isinstance(eth.json()['stats']['eth-rls']['latest'], (int, float)) else 0
+    eth_price = int(float(eth.json()['stats']['eth-rls']['latest'])) if isinstance(eth.json()['stats']['eth-rls']['latest'], (int, float)) else None
 
     return tether_price, btc_price, eth_price
 
@@ -26,23 +26,28 @@ def get_abshode_price():
     try:
         response = requests.get("https://api.tala.in/api/v1/live")
         data = response.json()
-        abshode_price = int(data['data']['geram18']['price']) if isinstance(data['data']['geram18']['price'], (int, float)) else 0
+        abshode_price = int(data['data']['geram18']['price']) if isinstance(data['data']['geram18']['price'], (int, float)) else None
         return abshode_price
     except:
-        return 0
+        return None
 
 def get_ons_price():
     try:
         response = requests.get("https://api.coingecko.com/api/v3/simple/price?ids=tether-gold&vs_currencies=usd")
-        ons = float(response.json()['tether-gold']['usd']) if isinstance(response.json()['tether-gold']['usd'], (int, float)) else 0
+        ons = float(response.json()['tether-gold']['usd']) if isinstance(response.json()['tether-gold']['usd'], (int, float)) else None
         return ons
     except:
-        return 0
+        return None
 
 def send_message(text):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     data = {"chat_id": CHAT_ID, "text": text}
     requests.post(url, data=data)
+
+def format_price(price):
+    if price is None:
+        return "اطلاعات در دسترس نیست"
+    return f"{price:,.2f}"
 
 def main():
     while True:
@@ -52,11 +57,13 @@ def main():
             ons_price = get_ons_price()
 
             msg = f"""📊 قیمت لحظه‌ای:
-💵 تتر: {int(tether_price):,} تومان
-₿ بیت‌کوین: {int(btc_price):,} تومان
-Ξ اتریوم: {int(eth_price):,} تومان
-🪙 آب‌شده ۱۸ عیار: {int(abshode_price):,} تومان
-🏅 انس جهانی طلا: {float(ons_price):,.2f} دلار
+
+💵 **تتر**: {format_price(tether_price)} تومان
+₿ **بیت‌کوین**: {format_price(btc_price)} تومان
+Ξ **اتریوم**: {format_price(eth_price)} تومان
+
+🪙 **آب‌شده ۱۸ عیار**: {format_price(abshode_price)} تومان
+🏅 **انس جهانی طلا**: {format_price(ons_price)} دلار
 """
 
             send_message(msg)
