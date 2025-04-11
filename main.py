@@ -1,17 +1,11 @@
 import requests
 import schedule
 import time
-from bs4 import BeautifulSoup
 import telegram
-from dotenv import load_dotenv
-import os
-
-# بارگذاری متغیرهای محیطی از فایل .env
-load_dotenv()
 
 # توکن و آیدی ربات تلگرام شما
-TOKEN = os.getenv("TELEGRAM_TOKEN")
-CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+TOKEN = "7913278142:AAFreLlsi9pMI6zh8yxjSqT4ItOsHKUd1yk"
+CHAT_ID = "Currentprice98"  # یا آیدی چت تلگرام
 
 # ساخت ربات تلگرام
 bot = telegram.Bot(token=TOKEN)
@@ -66,4 +60,31 @@ def get_prices():
     # چاپ مقادیر برای بررسی
     print(f"تتر: {teth_price}, بیت‌کوین: {btc_price}, اتریوم: {eth_price}, آب‌شده: {gold_price}, انس جهانی: {ounce_price}")
 
-    return teth_price, btc_price, eth_price, gold_price, ounce_price_
+    return teth_price, btc_price, eth_price, gold_price, ounce_price
+
+# ارسال پیام به تلگرام
+def send_message():
+    teth, btc, eth, gold, ounce = get_prices()
+
+    # ساخت متن پیام
+    message = f"""
+    📊 قیمت لحظه‌ای:
+
+    💵 **تتر**: {teth} تومان
+    ₿ **بیت‌کوین**: {btc} تومان
+    Ξ **اتریوم**: {eth} تومان
+
+    🪙 **آب‌شده ۱۸ عیار**: {gold} تومان
+    🏅 **انس جهانی طلا**: {ounce} دلار
+    """
+
+    # ارسال پیام به تلگرام
+    bot.send_message(chat_id=CHAT_ID, text=message)
+
+# برنامه‌ریزی ارسال هر 1 دقیقه
+schedule.every(1).minute.do(send_message)
+
+# اجرای برنامه
+while True:
+    schedule.run_pending()
+    time.sleep(1)
