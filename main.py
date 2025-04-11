@@ -52,7 +52,7 @@ async def send_message():
 
 # زمان‌بندی ارسال پیام هر 1 دقیقه
 def job():
-    asyncio.create_task(send_message())
+    asyncio.run(send_message())  # اجرای تابع غیر همزمان با asyncio.run
 
 # زمان‌بندی برای ارسال هر دقیقه
 schedule.every(1).minute.do(job)
@@ -61,4 +61,3 @@ schedule.every(1).minute.do(job)
 while True:
     schedule.run_pending()
     time.sleep(1)
-
