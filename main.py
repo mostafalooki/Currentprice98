@@ -2,6 +2,7 @@ import requests
 import schedule
 import time
 import telegram
+import asyncio
 
 # توکن و آیدی ربات تلگرام شما
 TOKEN = "7913278142:AAFreLlsi9pMI6zh8yxjSqT4ItOsHKUd1yk"
@@ -63,7 +64,7 @@ def get_prices():
     return teth_price, btc_price, eth_price, gold_price, ounce_price
 
 # ارسال پیام به تلگرام
-def send_message():
+async def send_message():
     teth, btc, eth, gold, ounce = get_prices()
 
     # ساخت متن پیام
@@ -78,13 +79,14 @@ def send_message():
     🏅 **انس جهانی طلا**: {ounce} دلار
     """
 
-    # ارسال پیام به تلگرام
-    bot.send_message(chat_id=CHAT_ID, text=message)
+    # ارسال پیام به تلگرام به صورت غیرهمزمان
+    await bot.send_message(chat_id=CHAT_ID, text=message)
 
 # برنامه‌ریزی ارسال هر 1 دقیقه
-schedule.every(1).minute.do(send_message)
+schedule.every(1).minute.do(lambda: asyncio.run(send_message()))
 
 # اجرای برنامه
 while True:
     schedule.run_pending()
     time.sleep(1)
+
