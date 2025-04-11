@@ -6,7 +6,7 @@ import asyncio
 
 # توکن و آیدی ربات تلگرام شما
 TOKEN = "7913278142:AAFreLlsi9pMI6zh8yxjSqT4ItOsHKUd1yk"
-CHAT_ID = "Currentprice98"  # یا آیدی چت تلگرام
+CHAT_ID = "@Currentprice98"  # یا آیدی چت تلگرام
 
 # ساخت ربات تلگرام
 bot = telegram.Bot(token=TOKEN)
