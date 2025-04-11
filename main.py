@@ -1,75 +1,60 @@
-import os
-import requests
 import asyncio
 import websockets
-from dotenv import load_dotenv
+import json
 from telegram import Bot
 from telegram.error import TelegramError
-import json
+from time import sleep
 
-# بارگزاری اطلاعات از فایل .env
-load_dotenv()
+# اطلاعات تلگرام (توکن ربات و آیدی کانال)
+TG_BOT_TOKEN = '7913278142:AAFreLlsi9pMI6zh8yxjSqT4ItOsHKUd1yk'
+TG_CHANNEL_ID = '@Currentprice98'
 
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-CHANNEL_ID = os.getenv("CHANNEL_ID")
-NOBITEX_API_KEY = os.getenv("NOBITEX_API_KEY")
+# URL وب‌ساکت نوبیتکس
+WS_URL = 'wss://wss.nobitex.ir/connection/websocket'
 
-bot = Bot(token=TELEGRAM_TOKEN)
-
-# WebSocket URL نوبیتکس
-wsUrl = 'wss://wss.nobitex.ir/connection/websocket'
-
-symbols = [
-    { 'symbol': "USDTIRT", 'title': "تتر", 'unit': "تومان", 'factor': 0.1 },
-    { 'symbol': "BTCIRT", 'title': "بیتکوین", 'unit': "تومان", 'factor': 0.1 },
-    { 'symbol': "BTCUSDT", 'title': "بیتکوین", 'unit': "دلار", 'factor': 1 },
-    { 'symbol': "ETHUSDT", 'title': "اتریوم", 'unit': "دلار", 'factor': 1 },
-    { 'symbol': "XAUT", 'title': "انس جهانی", 'unit': "دلار", 'factor': 1 }
-]
-
-# ارسال پیام به تلگرام
-async def send_message(message):
+# تابع ارسال پیام به تلگرام
+def send_to_telegram(message):
+    bot = Bot(token=TG_BOT_TOKEN)
     try:
-        await bot.send_message(chat_id=CHANNEL_ID, text=message)
+        bot.send_message(chat_id=TG_CHANNEL_ID, text=message)
     except TelegramError as e:
-        print(f"Error sending message: {e.message}")
+        print(f"Error sending message: {e}")
 
-# گرفتن قیمت از نوبیتکس
-async def get_prices():
-    messages = []
-    async with websockets.connect(wsUrl) as ws:
-        for symbol in symbols:
-            await ws.send(json.dumps({
-                "subscribe": {
-                    "channel": f"public:orderbook-{symbol['symbol']}",
-                    "recover": True,
-                    "offset": 0,
-                    "epoch": '0',
-                    "delta": 'fossil',
-                },
-                "id": 4,
-            }))
+# تابع برای دریافت قیمت تتر از نوبیتکس
+async def get_tether_price():
+    async with websockets.connect(WS_URL) as ws:
+        # اشتراک در کانال قیمت تتر
+        subscribe_message = {
+            "connect": {"name": "js"},
+            "subscribe": {
+                "channel": "public:orderbook-USDTIRT",  # کانال قیمت تتر
+                "recover": True,
+                "offset": 0,
+                "epoch": '0',
+                "delta": 'fossil'
+            },
+            "id": 4
+        }
 
+        await ws.send(json.dumps(subscribe_message))  # ارسال پیام اشتراک
+
+        while True:
             response = await ws.recv()
-            data = json.loads(response)
-            if 'data' in data:
-                price = data['data']['asks'][0][0] * symbol['factor']
-                formatted_price = f"{price} {symbol['unit']}"
-                messages.append(f"{symbol['title']}: {formatted_price}")
+            message = json.loads(response)
 
-    return messages
-
-# زمانبندی ارسال پیام
-async def job():
-    prices = await get_prices()
-    if prices:
-        message = "\n".join(prices)
-        await send_message(message)
+            if 'id' in message and message['id'] == 4:
+                if 'subscribe' in message and 'publications' in message['subscribe']:
+                    publication = message['subscribe']['publications'][0]
+                    if publication.get('data'):
+                        data = json.loads(publication['data'])
+                        if data.get('asks') and len(data['asks']) > 0:
+                            tether_price = data['asks'][0][0]  # قیمت تتر
+                            print(f"Current Tether Price: {tether_price}")
+                            formatted_price = f"💵 قیمت تتر: {tether_price} تومان"
+                            send_to_telegram(formatted_price)  # ارسال قیمت به تلگرام
+            sleep(1)
 
 # اجرای برنامه
-def run():
+if __name__ == "__main__":
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(job())
-
-if __name__ == '__main__':
-    run()
+    loop.run_until_complete(get_tether_price())
