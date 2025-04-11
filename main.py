@@ -1,63 +1,68 @@
 import requests
-import asyncio
-import telegram
 import schedule
 import time
+import asyncio
+from telegram import Bot
+from dotenv import load_dotenv
+import os
 
-# توکن تلگرام و شناسه چت
-TOKEN = '7913278142:AAFreLlsi9pMI6zh8yxjSqT4ItOsHKUd1yk'
-CHAT_ID = '7913278142'  # شناسه چت تلگرام خود را اینجا وارد کنید
+# بارگذاری متغیرهای محیطی از فایل .env
+load_dotenv()
 
-# توکن نوبیتکس
-NOBITEX_API_TOKEN = '01e14a6bcc2183c23869833cafbc08d5721291ce'
+# توکن تلگرام و ID چت
+TOKEN = os.getenv("TELEGRAM_TOKEN")
+CHAT_ID = os.getenv("CHAT_ID")
 
-# ساخت شیء بات تلگرام
-bot = telegram.Bot(token=TOKEN)
+# آدرس API نوبیتکس برای قیمت‌ها
+NOBITEX_API_URL = "https://api.nobitex.ir/v2/orderbook/"
 
-# گرفتن قیمت بیت‌کوین، اتریوم و تتر از نوبیتکس با استفاده از API
-def get_nobitex_prices():
+# ساخت بات تلگرام
+bot = Bot(token=TOKEN)
+
+# تابع برای دریافت قیمت‌ها
+def get_prices():
     try:
-        url = "https://api.nobitex.ir/v2/orderbook/BTCIRT"
-        headers = {
-            'Authorization': f'Bearer {NOBITEX_API_TOKEN}'  # توکن API نوبیتکس
-        }
-        response = requests.get(url, headers=headers)
-        data = response.json()
+        # دریافت قیمت تتر
+        teth_response = requests.get(NOBITEX_API_URL + 'USDTIRR')
+        teth_price = teth_response.json()['last_price'] if teth_response.status_code == 200 else 'اطلاعات در دسترس نیست'
 
-        btc_price = data['data']['bids'][0][0]  # قیمت خرید بیت‌کوین
-        eth_price = data['data']['bids'][0][0]  # قیمت خرید اتریوم
-        teth_price = data['data']['bids'][0][0]  # قیمت خرید تتر
+        # دریافت قیمت بیتکوین
+        btc_response = requests.get(NOBITEX_API_URL + 'BTCIRR')
+        btc_price = btc_response.json()['last_price'] if btc_response.status_code == 200 else 'اطلاعات در دسترس نیست'
+
+        # دریافت قیمت اتریوم
+        eth_response = requests.get(NOBITEX_API_URL + 'ETHIRR')
+        eth_price = eth_response.json()['last_price'] if eth_response.status_code == 200 else 'اطلاعات در دسترس نیست'
+
+        # در اینجا می‌توانی قیمت‌های دیگری هم اضافه کنی، مثل آب‌شده و انس طلا
 
         return teth_price, btc_price, eth_price
+
     except Exception as e:
-        print(f"خطا در دریافت قیمت‌ها از نوبیتکس: {e}")
-        return "اطلاعات در دسترس نیست", "اطلاعات در دسترس نیست", "اطلاعات در دسترس نیست"
+        print(f"Error: {e}")
+        return 'اطلاعات در دسترس نیست', 'اطلاعات در دسترس نیست', 'اطلاعات در دسترس نیست'
 
 # ارسال پیام به تلگرام
 async def send_message():
+    teth, btc, eth = get_prices()
+    message = f"""
+    💵 **تتر**: {teth} تومان
+    ₿ **بیت‌کوین**: {btc} تومان
+    Ξ **اتریوم**: {eth} تومان
+    """
     try:
-        teth, btc, eth = get_nobitex_prices()
-
-        message = f"""
-        📊 قیمت لحظه‌ای:
-
-        💵 **تتر**: {teth} تومان
-        ₿ **بیت‌کوین**: {btc} تومان
-        Ξ **اتریوم**: {eth} تومان
-        """
-
         await bot.send_message(chat_id=CHAT_ID, text=message)
     except Exception as e:
-        print(f"خطا در ارسال پیام: {e}")
+        print(f"Error sending message: {e}")
 
-# زمان‌بندی ارسال پیام هر 1 دقیقه
+# برنامه‌ریزی برای ارسال پیام‌ها
 def job():
-    asyncio.run(send_message())  # اجرای تابع غیر همزمان با asyncio.run
+    asyncio.run(send_message())
 
-# زمان‌بندی برای ارسال هر دقیقه
+# زمانبندی برای ارسال پیام هر 1 دقیقه
 schedule.every(1).minute.do(job)
 
-# اجرای حلقه زمان‌بندی
+# اجرای زمانبندی
 while True:
     schedule.run_pending()
     time.sleep(1)
